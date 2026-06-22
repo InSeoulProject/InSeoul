@@ -5,15 +5,15 @@
       "name": "함동균",
       "areas": ["web", "api", "fe", "be"],
       "githubLogin": "",
-      "jiraEmail": "",
-      "slackMemberId": ""
+      "jiraEmail": "dh4m28@gmail.com",
+      "slackMemberId": "U0BC1R4N1CM"
     },
     {
       "name": "김세민",
       "areas": ["ai", "data", "ci", "calculation", "shared-contracts"],
-      "githubLogin": "",
-      "jiraEmail": "",
-      "slackMemberId": ""
+      "githubLogin": "tpals0409",
+      "jiraEmail": "tpals0409dev@gmail.com",
+      "slackMemberId": "U0BC56R7GJW"
     }
   ],
   "areaToMember": {
