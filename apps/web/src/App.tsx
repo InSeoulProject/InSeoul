@@ -1,9 +1,15 @@
+import { RouterProvider } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { router } from "./router/index";
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
+});
+
 export default function App() {
   return (
-    <main style={{ fontFamily: "system-ui", padding: "2rem" }}>
-      <h1>InSeoul</h1>
-      <p>Front-end skeleton. Back-end API(/api/*)만 호출합니다.</p>
-      <p>API base: {import.meta.env.VITE_API_BASE_URL ?? "(unset)"}</p>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   );
 }
