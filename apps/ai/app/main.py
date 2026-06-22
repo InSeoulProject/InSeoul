@@ -1,8 +1,9 @@
-"""InSeoul 내부 AI API (FastAPI) — 가이드 8-2.
+"""InSeoul 내부 AI API (FastAPI) — API 설계서 10-3.
 
-- BE만 호출하는 /internal/ai/* 표면. FE 직접 호출 금지.
-- stateless 유지, DB 직접 접근 금지.
-- 외부 LLM 미설정/실패 시 항상 fallback 응답을 반환(데모 안정성, 가이드 16장).
+- BE만 호출하는 /internal/ai/*. FE 직접 호출 금지(NFR-12). stateless, DB 미저장(FR-18).
+- 매수 확정/수익 보장/대출 승인 보장 표현 금지(NFR-04).
+- 외부 LLM 미설정/실패 시 항상 fallback 응답(NFR-06).
+- 필드/응답은 packages/shared-contracts 의 ai.ts 와 일치.
 """
 
 from __future__ import annotations
@@ -14,53 +15,72 @@ from pydantic import BaseModel
 
 app = FastAPI(title="InSeoul Internal AI API", version="0.1.0")
 
-# 외부 LLM 키가 있으면 실제 호출(후속 구현), 없으면 fallback 모드.
 LLM_AVAILABLE = bool(os.getenv("OPENAI_API_KEY"))
 AI_MODEL = os.getenv("AI_MODEL", "gpt-4o-mini")
 
+DISCLAIMER = "본 서비스는 정보 제공 목적이며 금융·부동산 의사결정을 보장하지 않습니다."
 
-# ───────── 스키마 (packages/shared-contracts 의 ai.ts 와 일치) ─────────
 
-class ParseInputRequest(BaseModel):
+# ───────── 스키마 ─────────
+
+class InternalParseInputRequest(BaseModel):
     text: str
+    locale: str | None = "ko-KR"
 
 
-class ParsedFinancialInput(BaseModel):
-    monthlyIncome: int | None = None
-    monthlySavings: int | None = None
-    currentAssets: int | None = None
+class InternalParseInputResponse(BaseModel):
+    cashAsset: int | None = None
+    jeonseDeposit: int | None = None
+    monthlySaving: int | None = None
+    annualIncome: int | None = None
     targetDistrict: str | None = None
+    targetPrice: int | None = None
+    missingFields: list[str] = []
+    confidence: float = 0.0
 
 
-class ParseInputResponse(BaseModel):
-    parsed: ParsedFinancialInput
-    isFallback: bool
+class SimulationResultRef(BaseModel):
+    dDayMonths: int
+    requiredCapital: int
+    targetDistrict: str
 
 
-class StrategyCardRequest(BaseModel):
-    dDay: int
-    targetAmount: int
-    monthlySavings: int
-    targetDistrict: str | None = None
+class StressTestRef(BaseModel):
+    scenarioType: str
+    delayedMonths: int
+
+
+class LoanResultRef(BaseModel):
+    loanName: str
+    status: str
+    reason: str
+
+
+class AiGuardrail(BaseModel):
+    forbidGuarantee: bool = True
+    includeDisclaimer: bool = True
+
+
+class InternalStrategyCardRequest(BaseModel):
+    simulationResult: SimulationResultRef
+    stressTestResults: list[StressTestRef] = []
+    loanResults: list[LoanResultRef] = []
+    guardrail: AiGuardrail = AiGuardrail()
 
 
 class StrategyCard(BaseModel):
-    title: str
     summary: str
-    steps: list[str]
-    isFallback: bool
+    actionItems: list[str]
+    riskNotes: list[str]
+    disclaimer: str
 
 
-class StrategyCardResponse(BaseModel):
-    card: StrategyCard
+class InternalPolicyExplainRequest(BaseModel):
+    loanName: str
+    status: str
 
 
-class PolicyExplainRequest(BaseModel):
-    loanProductCode: str
-    eligible: bool
-
-
-class PolicyExplainResponse(BaseModel):
+class InternalPolicyExplainResponse(BaseModel):
     explanation: str
     isFallback: bool
 
@@ -77,35 +97,43 @@ def health() -> HealthResponse:
     return HealthResponse(status="ok" if LLM_AVAILABLE else "degraded", llmAvailable=LLM_AVAILABLE)
 
 
-@app.post("/internal/ai/parse-input", response_model=ParseInputResponse)
-def parse_input(req: ParseInputRequest) -> ParseInputResponse:
-    # TODO: LLM_AVAILABLE 시 실제 파싱. 현재는 fallback(빈 구조).
-    return ParseInputResponse(parsed=ParsedFinancialInput(), isFallback=True)
+@app.post("/internal/ai/parse-input", response_model=InternalParseInputResponse)
+def parse_input(req: InternalParseInputRequest) -> InternalParseInputResponse:
+    # TODO: LLM_AVAILABLE 시 Function Calling 파싱. 현재는 fallback(빈 구조).
+    missing = ["cashAsset", "jeonseDeposit", "monthlySaving", "annualIncome", "targetDistrict", "targetPrice"]
+    return InternalParseInputResponse(missingFields=missing, confidence=0.0)
 
 
-@app.post("/internal/ai/strategy-card", response_model=StrategyCardResponse)
-def strategy_card(req: StrategyCardRequest) -> StrategyCardResponse:
-    # fallback: 입력만으로 구성한 기본 전략 카드.
-    card = StrategyCard(
-        title="기본 전략 카드",
-        summary=(
-            f"목표까지 D-{req.dDay}. 월 {req.monthlySavings:,}원 저축으로 "
-            f"{req.targetAmount:,}원을 모으는 계획입니다."
-        ),
-        steps=[
-            "월 저축액을 자동이체로 고정하세요.",
-            "정책대출 자격을 확인하세요.",
-            "분기마다 목표를 재점검하세요.",
-        ],
-        isFallback=True,
+@app.post("/internal/ai/strategy-card", response_model=StrategyCard)
+def strategy_card(req: InternalStrategyCardRequest) -> StrategyCard:
+    sim = req.simulationResult
+    summary = (
+        f"현재 조건에서는 {sim.targetDistrict} 매수 가능 시점이 약 {sim.dDayMonths}개월 뒤입니다."
     )
-    return StrategyCardResponse(card=card)
+    action_items = [
+        "월 저축액을 늘리면 D-Day 단축 가능성이 있습니다.",
+        "정책대출 주택 가격 한도를 확인하세요.",
+    ]
+    for s in req.stressTestResults:
+        if s.scenarioType == "INTEREST_RATE_UP":
+            action_items.append(f"금리 상승 시 매수 시점이 약 {s.delayedMonths}개월 지연될 수 있습니다.")
+    risk_notes = ["본 결과는 입력값 기반 시뮬레이션이며 실제 대출 승인이나 매수를 보장하지 않습니다."]
+    return StrategyCard(
+        summary=summary,
+        actionItems=action_items[:3],
+        riskNotes=risk_notes,
+        disclaimer=DISCLAIMER,
+    )
 
 
-@app.post("/internal/ai/policy-explain", response_model=PolicyExplainResponse)
-def policy_explain(req: PolicyExplainRequest) -> PolicyExplainResponse:
-    verdict = "대상에 해당합니다." if req.eligible else "현재 조건으로는 대상이 아닙니다."
-    return PolicyExplainResponse(
-        explanation=f"{req.loanProductCode}: {verdict}",
+@app.post("/internal/ai/policy-explain", response_model=InternalPolicyExplainResponse)
+def policy_explain(req: InternalPolicyExplainRequest) -> InternalPolicyExplainResponse:
+    verdict = {
+        "POSSIBLE": "대상에 해당할 가능성이 있습니다.",
+        "IMPOSSIBLE": "현재 조건으로는 대상이 아닐 수 있습니다.",
+        "NEED_MORE_INFO": "추가 정보 확인이 필요합니다.",
+    }.get(req.status, "조건 확인이 필요합니다.")
+    return InternalPolicyExplainResponse(
+        explanation=f"{req.loanName}: {verdict}",
         isFallback=True,
     )
