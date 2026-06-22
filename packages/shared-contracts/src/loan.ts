@@ -1,31 +1,29 @@
-/** 정책대출 — 가이드 8-1: /api/loans/eligibility */
+/** 정책대출 — API 설계서: /api/loans/eligibility (보금자리론/디딤돌 등) */
 import type { Won } from "./common.js";
 
 export interface LoanProduct {
-  code: string;
   name: string;
-  /** 연 이자율(%). */
-  interestRatePct: number;
-  /** 최대 한도(원). */
-  maxAmount: Won;
+  maxHousePrice: Won;
+  maxIncome: Won;
+  ltv: number;
+  description: string;
 }
 
-/** POST /api/loans/eligibility — 정책대출 판정 */
+export type LoanStatus = "POSSIBLE" | "IMPOSSIBLE" | "NEED_MORE_INFO";
+
+/** POST /api/loans/eligibility */
 export interface LoanEligibilityRequest {
   annualIncome: Won;
-  currentAssets: Won;
-  /** 무주택 여부 등 조건 플래그. */
-  isFirstHome?: boolean;
+  targetPrice: Won;
+  firstHomeBuyer?: boolean;
+  maritalStatus?: "single" | "married";
 }
 
 export interface LoanEligibilityResult {
-  product: LoanProduct;
-  eligible: boolean;
-  /** 판정 사유 (정책 설명용). */
+  loanName: string;
+  status: LoanStatus;
   reason: string;
-  approvedAmount?: Won;
 }
-
-export interface LoanEligibilityResponse {
+export interface LoanEligibilityData {
   results: LoanEligibilityResult[];
 }

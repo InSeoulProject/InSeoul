@@ -1,37 +1,26 @@
-/** 공통 타입 — 모든 API 응답/에러/페이지네이션의 기반. */
+/** 공통 타입 — API 설계서(05)의 응답 래퍼/공용 타입. */
 
-/** 성공/실패를 감싸는 표준 API 응답 래퍼. */
+/** 표준 API 응답: 성공은 { success:true, data }, 실패는 { success:false, error }. */
 export type ApiResponse<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: ApiError };
+  | { success: true; data: T }
+  | { success: false; error: ApiError };
 
 export interface ApiError {
-  /** 머신 판독용 코드 (예: AUTH_INVALID_CREDENTIALS). */
   code: string;
-  /** 사람이 읽는 메시지. */
   message: string;
   /** 필드 단위 검증 오류 (선택). */
   details?: Record<string, string>;
 }
 
-export interface Pagination {
-  page: number;
-  size: number;
-  total: number;
-}
+/** DB id (ERD: bigint). */
+export type Id = number;
 
-export interface Paginated<T> {
-  items: T[];
-  pagination: Pagination;
-}
-
-/** ISO-8601 문자열 (예: 2026-06-22T10:00:00Z). */
-export type IsoDateTime = string;
-
-/** YYYY-MM-DD. */
-export type IsoDate = string;
-
-/** 인증 사용자 식별자. 모든 사용자 생성 데이터는 이 값 기준으로 분리된다. */
-export type UserId = string;
+/** 인증 사용자 식별자. 모든 사용자 데이터는 이 값 기준으로 격리(NFR-02). */
+export type UserId = Id;
 
 export type Won = number;
+
+/** ISO-8601 (예: 2026-06-22T10:00:00). */
+export type IsoDateTime = string;
+/** YYYY-MM-DD. */
+export type IsoDate = string;

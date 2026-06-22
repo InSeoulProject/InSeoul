@@ -81,31 +81,33 @@ async function main() {
       lines.push(`+ Epic 생성예정: ${epicSummary}`);
     }
 
-    const member = memberByArea(epic.area);
-    const acc = member ? accByName[member.name] : null;
-    const who = member ? `${member.name}${acc ? "" : " (미배정: 이메일 없음)"}` : "(미배정)";
+    for (const rawT of epic.tasks) {
+      const t = typeof rawT === "string" ? { summary: rawT } : rawT;
+      const area = t.area || epic.area;
+      const member = memberByArea(area);
+      const acc = member ? accByName[member.name] : null;
+      const who = member ? `${member.name}${acc ? "" : " (미배정: 이메일 없음)"}` : "(미배정)";
 
-    for (const t of epic.tasks) {
       const exists = await searchIssueKey(
-        `project = ${JIRA_PROJECT} AND labels = ${SEED_LABEL} AND summary ~ "${jqlText(t)}"`,
+        `project = ${JIRA_PROJECT} AND labels = ${SEED_LABEL} AND summary ~ "${jqlText(t.summary)}"`,
       ).catch(() => null);
       if (exists) {
-        lines.push(`  = Task 존재: ${t} (${exists})`);
+        lines.push(`  = Task 존재: ${t.summary} (${exists})`);
         continue;
       }
       if (APPLY) {
         const key = await createIssue({
-          summary: t,
-          description: `${epic.summary} 관련 작업 (가이드 ${epic.key})`,
-          labels: [SEED_LABEL, epic.area],
+          summary: t.summary,
+          description: `${epic.summary} 관련 작업 (${epic.key})`,
+          labels: [SEED_LABEL, area],
           assigneeAccountId: acc,
           parentKey: epicKey || undefined,
           issueTypes: ["Task", "작업", "Story", "스토리"],
         });
         createdCount++;
-        lines.push(`  + Task 생성: ${t} (${key}) → ${who}`);
+        lines.push(`  + Task 생성: ${t.summary} (${key}) → ${who}`);
       } else {
-        lines.push(`  + Task 생성예정: ${t} → ${who}`);
+        lines.push(`  + Task 생성예정: ${t.summary} → ${who}`);
       }
     }
   }

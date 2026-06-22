@@ -86,6 +86,10 @@ feature/ci-*          # CI/CD
 - **Slack**: CI 결과 알림(webhook) + GitHub 앱 구독 + 헤르메스 일일 다이제스트. [docs/integrations.md](./docs/integrations.md).
 - **헤르메스(PM 에이전트)**: `.github/workflows/hermes.yml` cron — 매 평일 다이제스트를 Slack에 게시.
 
+## 기획·요구사항·설계 문서
+`docs/spec/` — 기획서, 요구사항 정의서, UseCase, WBS, ERD, **API 설계서**, Class Diagram, 화면정의서.
+제품 정의(매수 D-Day 시뮬레이터)와 정확한 API/스키마의 단일 출처입니다.
+
 ## API 경계
-외부(FE→BE) 및 내부(BE→AI) 엔드포인트 목록은 `packages/shared-contracts`와
-[docs/inseoul_external_pc_setup_guide.md](./docs/inseoul_external_pc_setup_guide.md) 8장 참고.
+외부(FE→BE) 및 내부(BE→AI) 엔드포인트/타입은 `packages/shared-contracts`와
+[docs/spec/05_API_설계서.md](./docs/spec/05_API_설계서.md) 참고.
