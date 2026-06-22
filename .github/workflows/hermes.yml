@@ -4,7 +4,12 @@ on:
   schedule:
     # 평일 00:00 UTC = 09:00 KST
     - cron: "0 0 * * 1-5"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_ci_issue:
+        description: "Jira 쓰기 검증용 테스트 이슈 강제 생성"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,6 +34,12 @@ jobs:
           GMS_KEY: ${{ secrets.GMS_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           HERMES_MODEL: claude-sonnet-4-6
+          # Jira 쓰기 (셋 다 등록돼야 활성). 없으면 다이제스트만 동작.
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY: NSLPRJCT
+          HERMES_FORCE_CI_ISSUE: ${{ inputs.force_ci_issue }}
           # 기본 base URL은 스크립트에 내장(SSAFY GMS 프록시). 바뀌면 아래 주석 해제:
           # LLM_BASE_URL: https://gms.ssafy.io/gmsapi/api.anthropic.com/v1/messages
         run: node scripts/hermes/digest.mjs
