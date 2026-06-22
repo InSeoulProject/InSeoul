@@ -100,7 +100,10 @@ def health() -> HealthResponse:
 @app.post("/internal/ai/parse-input", response_model=InternalParseInputResponse)
 def parse_input(req: InternalParseInputRequest) -> InternalParseInputResponse:
     # TODO: LLM_AVAILABLE 시 Function Calling 파싱. 현재는 fallback(빈 구조).
-    missing = ["cashAsset", "jeonseDeposit", "monthlySaving", "annualIncome", "targetDistrict", "targetPrice"]
+    missing = [
+        "cashAsset", "jeonseDeposit", "monthlySaving",
+        "annualIncome", "targetDistrict", "targetPrice",
+    ]
     return InternalParseInputResponse(missingFields=missing, confidence=0.0)
 
 
@@ -116,8 +119,12 @@ def strategy_card(req: InternalStrategyCardRequest) -> StrategyCard:
     ]
     for s in req.stressTestResults:
         if s.scenarioType == "INTEREST_RATE_UP":
-            action_items.append(f"금리 상승 시 매수 시점이 약 {s.delayedMonths}개월 지연될 수 있습니다.")
-    risk_notes = ["본 결과는 입력값 기반 시뮬레이션이며 실제 대출 승인이나 매수를 보장하지 않습니다."]
+            action_items.append(
+                f"금리 상승 시 매수 시점이 약 {s.delayedMonths}개월 지연될 수 있습니다."
+            )
+    risk_notes = [
+        "본 결과는 입력값 기반 시뮬레이션이며 실제 대출 승인이나 매수를 보장하지 않습니다."
+    ]
     return StrategyCard(
         summary=summary,
         actionItems=action_items[:3],
