@@ -8,8 +8,8 @@
     "node": ">=22"
   },
   "workspaces": [
-    "apps/web",
-    "packages/*"
+    "packages/*",
+    "apps/web"
   ],
   "scripts": {
     "lint": "npm run lint --workspaces --if-present",
