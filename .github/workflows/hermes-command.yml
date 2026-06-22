@@ -1,0 +1,30 @@
+name: Hermes command
+
+on:
+  repository_dispatch:
+    types: [hermes-command]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hermes-command-${{ github.event.client_payload.user_name }}
+  cancel-in-progress: false
+
+jobs:
+  command:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Hermes command
+        env:
+          GMS_KEY: ${{ secrets.GMS_KEY }}
+          HERMES_MODEL: claude-sonnet-4-6
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY: NSLPRJCT
+        run: node scripts/hermes/command.mjs
