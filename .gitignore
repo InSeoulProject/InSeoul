@@ -1,0 +1,34 @@
+# Node / JS
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# Env — commit only *.env.example
+.env
+.env.local
+.env.*.local
+
+# Java / Gradle (apps/api)
+.gradle/
+apps/api/build/
+apps/api/bin/
+apps/api/.gradle/
+*.class
+
+# Python (apps/ai)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log

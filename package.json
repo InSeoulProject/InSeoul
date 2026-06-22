@@ -1,0 +1,21 @@
+{
+  "name": "inseoul",
+  "private": true,
+  "version": "0.1.0",
+  "description": "InSeoul monorepo — Front-end (web) → Back-end API (api) → Internal AI API (ai), shared contracts via packages.",
+  "packageManager": "npm@10.9.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "build:contracts": "npm run build --workspace @inseoul/shared-contracts"
+  },
+  "license": "UNLICENSED"
+}

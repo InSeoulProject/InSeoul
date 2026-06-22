@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'kr.inseoul'
+version = '0.1.0'
+
+java {
+    // 로컬에 어떤 JDK가 있든(이 PC는 25) Gradle이 21을 자동 프로비저닝/사용.
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // DB/마이그레이션은 스키마 단계에서 활성화 (MySQL 8 + Flyway).
+    // runtimeOnly 'com.mysql:mysql-connector-j'
+    // implementation 'org.flywaydb:flyway-core'
+    // implementation 'org.flywaydb:flyway-mysql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

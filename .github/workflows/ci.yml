@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # 변경 범위 감지 → 영향받은 잡만 실행
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      api: ${{ steps.filter.outputs.api }}
+      ai: ${{ steps.filter.outputs.ai }}
+      packages: ${{ steps.filter.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+            api:
+              - 'apps/api/**'
+            ai:
+              - 'apps/ai/**'
+            packages:
+              - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
+
+  contracts:
+    needs: changes
+    if: needs.changes.outputs.packages == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.packages == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:contracts
+      - run: npm run --workspace @inseoul/web lint
+      - run: npm run --workspace @inseoul/web test
+      - run: npm run --workspace @inseoul/web build
+
+  api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - run: chmod +x ./gradlew
+      - run: ./gradlew build --no-daemon
+
+  ai:
+    needs: changes
+    if: needs.changes.outputs.ai == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q
+
+  # 모든 잡 결과를 모아 Slack에 통합 리포트 (SLACK_WEBHOOK_URL 미설정 시 조용히 skip)
+  notify:
+    needs: [changes, contracts, web, api, ai]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack summary
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          C: ${{ needs.contracts.result }}
+          W: ${{ needs.web.result }}
+          A: ${{ needs.api.result }}
+          AI: ${{ needs.ai.result }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "SLACK_WEBHOOK_URL 미설정 — 알림 skip"; exit 0
+          fi
+          emoji() { case "$1" in success) echo ":white_check_mark:";; failure) echo ":x:";; skipped) echo ":fast_forward:";; *) echo ":grey_question:";; esac; }
+          overall=":white_check_mark: 성공"
+          for r in "$C" "$W" "$A" "$AI"; do [ "$r" = "failure" ] && overall=":x: 실패"; done
+          text="*InSeoul CI* — ${overall}\n• contracts: $(emoji "$C") ${C}\n• web: $(emoji "$W") ${W}\n• api: $(emoji "$A") ${A}\n• ai: $(emoji "$AI") ${AI}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|run #${{ github.run_number }}> · \`${{ github.ref_name }}\` · ${{ github.actor }}"
+          payload=$(printf '{"text":"%s"}' "$text")
+          curl -fsSL -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" && echo "Slack 전송 완료"

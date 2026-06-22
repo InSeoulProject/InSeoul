@@ -1,0 +1,11 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: inseoul-api
+
+# AI 내부 API 베이스 URL (BE만 호출). 실제값은 .env.local / 환경변수로 주입.
+ai:
+  internal:
+    base-url: ${AI_INTERNAL_BASE_URL:http://localhost:8000}
