@@ -2,12 +2,12 @@
 
 ## 브랜치 & PR
 - `main`은 보호 브랜치다. 직접 push 금지, **PR + CI 통과 필수**, CI 실패 시 머지 금지.
-- 브랜치: `feature/<area>-<issueKey>-<slug>` (예: `feature/api-IN-12-auth`). area ∈ web/api/ai/data/ci.
-- PR 제목에 Jira 이슈키를 포함한다 (예: `IN-12 feat(api): signup endpoint`).
+- 브랜치: `feature/<area>-<issueKey>-<slug>` (예: `feature/api-NSLPRJCT-12-auth`). area ∈ web/api/ai/data/ci.
+- PR 제목에 Jira 이슈키를 포함한다 (예: `NSLPRJCT-12 feat(api): signup endpoint`).
 
 ## Jira 연동 (Atlassian GitHub 앱 + Smart Commits)
 
-- **프로젝트 키: `IN`** (이슈는 `IN-1`, `IN-2` ...)
+- **프로젝트 키: `NSLPRJCT`** (이슈는 `NSLPRJCT-1`, `NSLPRJCT-2` ...)
 
 조직 admin이 Jira에서 **"GitHub for Jira"** 앱을 설치하고 `InSeoulProject/InSeoul` 레포를 연결한다.
 연결 후에는 커밋/PR/브랜치에 이슈키를 넣기만 하면 Jira 이슈에 자동으로 링크·반영된다.
@@ -15,11 +15,11 @@
 ### Smart Commit 문법
 커밋 메시지에 이슈키 + 명령을 넣는다:
 ```
-IN-12 feat(api): add login endpoint     # 이슈에 커밋 링크
-IN-12 #comment 로그인 검증 로직 추가      # 이슈에 코멘트
-IN-12 #in-progress                       # 상태 전환(진행 중)
-IN-12 #done                              # 상태 전환(완료)
-IN-12 #time 2h 회원가입 구현             # 작업 시간 기록
+NSLPRJCT-12 feat(api): add login endpoint     # 이슈에 커밋 링크
+NSLPRJCT-12 #comment 로그인 검증 로직 추가      # 이슈에 코멘트
+NSLPRJCT-12 #in-progress                       # 상태 전환(진행 중)
+NSLPRJCT-12 #done                              # 상태 전환(완료)
+NSLPRJCT-12 #time 2h 회원가입 구현             # 작업 시간 기록
 ```
 - 이슈키는 메시지 어디에 있어도 인식되지만, 맨 앞 권장.
 - 전환 명령(`#in-progress`, `#done` 등)의 이름은 해당 Jira 프로젝트의 워크플로 전환명과 일치해야 한다.
