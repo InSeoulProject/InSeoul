@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -b",
     "lint": "tsc --noEmit",
-    "test": "node --test 2>/dev/null || echo 'no tests yet'",
+    "test": "tsc -b && node --test \"test/*.test.mjs\"",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "devDependencies": {
