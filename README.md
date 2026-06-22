@@ -79,7 +79,7 @@ feature/ai-*          # AI
 feature/data-*        # 데이터/계산
 feature/ci-*          # CI/CD
 ```
-이슈키 권장: `feature/api-INS-12-auth`.
+이슈키 권장: `feature/api-TPALS-12-auth`.
 
 ## 협업 도구 연동
 - **Jira**: Atlassian "GitHub for Jira" 앱 + Smart Commits. 자세한 규약은 [CONTRIBUTING.md](./CONTRIBUTING.md).
