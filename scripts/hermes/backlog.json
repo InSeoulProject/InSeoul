@@ -1,0 +1,81 @@
+{
+  "_comment": "백로그 시딩 계획 (가이드 12·14장). epic.area → 담당자 자동 배정. seed-backlog.mjs가 dedup하여 생성.",
+  "epics": [
+    {
+      "key": "EPIC-03",
+      "summary": "인증/사용자 DB",
+      "area": "be",
+      "tasks": [
+        "회원가입 API (/api/auth/signup)",
+        "로그인 API (/api/auth/login)",
+        "로그아웃 + refresh 토큰",
+        "JWT 발급/검증 + Spring Security",
+        "users/user_profiles 스키마 + 마이그레이션"
+      ]
+    },
+    {
+      "key": "EPIC-05",
+      "summary": "Back-end API",
+      "area": "be",
+      "tasks": [
+        "지역 가격 조회 (/api/districts/prices)",
+        "D-Day 계산 (/api/simulation/golden-cross)",
+        "리스크 계산 (/api/simulation/stress-test)",
+        "정책대출 판정 (/api/loans/eligibility)",
+        "이력 조회 (/api/simulation/history)",
+        "AI 중계 (/api/ai/* → /internal/ai/*)"
+      ]
+    },
+    {
+      "key": "EPIC-04",
+      "summary": "Front-end",
+      "area": "fe",
+      "tasks": [
+        "화면/라우팅 골격",
+        "BE Mock 응답 연동",
+        "실제 API 연동",
+        "전략 카드 UI"
+      ]
+    },
+    {
+      "key": "EPIC-06",
+      "summary": "AI API",
+      "area": "ai",
+      "tasks": [
+        "자연어 파싱 (/internal/ai/parse-input)",
+        "전략 카드 생성 (/internal/ai/strategy-card)",
+        "정책 설명 (/internal/ai/policy-explain)",
+        "AI fallback 응답 보강"
+      ]
+    },
+    {
+      "key": "EPIC-07",
+      "summary": "Data/Calculation",
+      "area": "data",
+      "tasks": [
+        "지역 가격/정책대출 seed 데이터",
+        "D-Day 계산 공식 보강",
+        "계산 검증 케이스"
+      ]
+    },
+    {
+      "key": "EPIC-09",
+      "summary": "통합/QA",
+      "area": "ci",
+      "tasks": [
+        "FE-BE-AI 통합 시나리오",
+        "E2E 스모크",
+        "데모 안정성 점검(AI fallback)"
+      ]
+    },
+    {
+      "key": "EPIC-10",
+      "summary": "발표/제출",
+      "area": "ci",
+      "tasks": [
+        "아키텍처 다이어그램",
+        "제출 문서/릴리스 노트"
+      ]
+    }
+  ]
+}

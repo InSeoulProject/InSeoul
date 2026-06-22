@@ -1,21 +1,29 @@
-// 헤르메스 — PM 다이제스트 + Jira 블로커 자동 생성 (GitHub Actions cron에서 실행).
+// 헤르메스 — PM 다이제스트 + Jira 블로커 자동 생성 + 개인별 업무 배정 (GitHub Actions cron).
 // GitHub(PR/이슈/CI) 수집 → GMS 프록시(Anthropic 호환)로 요약 → Slack 게시.
-// 결정적 규칙 A: main CI가 "현재" 실패면 Jira 블로커 이슈 생성(중복 방지).
-// 의존성 없음 (Node 22 내장 fetch). 키 미설정 시 안전하게 skip.
+// 자율성 C: 상태 신호(CI 실패)→블로커 생성은 자동, 생성/배정은 라벨로 흔적 남김.
+// 의존성 없음 (Node 22 내장 fetch). 키 미설정 시 해당 기능만 안전하게 skip.
 //
 // 환경변수:
 //   GITHUB_TOKEN, GITHUB_REPOSITORY (Actions 자동 제공)
-//   GMS_KEY (요약용 — 없으면 ANTHROPIC_API_KEY 폴백, 둘 다 없으면 기계 요약)
-//   LLM_BASE_URL (선택, 기본 SSAFY GMS 프록시)
+//   GMS_KEY (요약 — 없으면 ANTHROPIC_API_KEY 폴백, 둘 다 없으면 기계 요약)
+//   LLM_BASE_URL (선택, 기본 SSAFY GMS 프록시), HERMES_MODEL (기본 claude-sonnet-4-6)
 //   SLACK_WEBHOOK_URL (게시 — 없으면 콘솔 출력)
-//   HERMES_MODEL (선택, 기본 claude-sonnet-4-6)
-//   JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN (Jira 쓰기 — 셋 다 있어야 활성)
-//   JIRA_PROJECT_KEY (선택, 기본 NSLPRJCT), JIRA_ISSUE_TYPE (선택, 기본 Task)
-//   HERMES_FORCE_CI_ISSUE=true (검증용: CI 정상이어도 테스트 이슈 1개 생성)
+//   JIRA_BASE_URL/USER_EMAIL/API_TOKEN (Jira 활성), JIRA_PROJECT_KEY (기본 NSLPRJCT)
+//   HERMES_FORCE_CI_ISSUE=true (검증용 테스트 이슈 생성)
+
+import team from "./team.json" with { type: "json" };
+import {
+  JIRA_ENABLED,
+  JIRA_BASE,
+  JIRA_PROJECT,
+  searchIssueKey,
+  searchIssues,
+  createIssue,
+  resolveAccountId,
+} from "./jira.mjs";
 
 const GH_TOKEN = process.env.GITHUB_TOKEN;
 const REPO = process.env.GITHUB_REPOSITORY; // "owner/name"
-const REPO_URL = `https://github.com/${REPO}`;
 
 const LLM_KEY = process.env.GMS_KEY || process.env.ANTHROPIC_API_KEY;
 const LLM_URL =
@@ -24,14 +32,6 @@ const LLM_URL =
 const MODEL = process.env.HERMES_MODEL || "claude-sonnet-4-6";
 
 const SLACK_URL = process.env.SLACK_WEBHOOK_URL;
-
-const JIRA_BASE = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
-const JIRA_EMAIL = process.env.JIRA_USER_EMAIL;
-const JIRA_TOKEN = process.env.JIRA_API_TOKEN;
-const JIRA_PROJECT = process.env.JIRA_PROJECT_KEY || "NSLPRJCT";
-const JIRA_TYPE = process.env.JIRA_ISSUE_TYPE || "Task";
-const JIRA_ENABLED = Boolean(JIRA_BASE && JIRA_EMAIL && JIRA_TOKEN);
-
 const FORCE_CI_ISSUE = process.env.HERMES_FORCE_CI_ISSUE === "true";
 const SINCE = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -68,7 +68,6 @@ async function collect() {
   }));
 
   const ciRuns = (runs.workflow_runs || []).filter((r) => r.name === "CI");
-  // "현재" main CI 상태 = 가장 최근 main CI 런 (24h 내 옛 실패가 아니라 최신 상태)
   const latest = ciRuns.find((r) => r.head_branch === "main");
   const mainCi = latest
     ? {
@@ -84,17 +83,17 @@ async function collect() {
   return { mergedRecently, open, mainCi };
 }
 
-// ───────── LLM 요약 (GMS 프록시, Anthropic 호환) ─────────
+// ───────── LLM 요약 (GMS 프록시) ─────────
 
 async function summarize(data) {
   if (!LLM_KEY) return null;
   const prompt = `너는 InSeoul 2인 개발팀의 PM 어시스턴트 "헤르메스"다.
 아래 데이터로 한국어 일일 다이제스트를 간결하게 작성해라.
 - 어제 머지된 PR 요약
-- 현재 열린 PR (hasIssueKey=false 면 "⚠️ 이슈키 누락"으로 표시)
-- CI 블로커: **mainCi.failing 이 true 일 때만** 강조하라. false면 "main CI 정상"이라고만 적어라(과거 실패 언급 금지).
+- 현재 열린 PR (hasIssueKey=false 면 "⚠️ 이슈키 누락")
+- CI 블로커: mainCi.failing 이 true 일 때만 강조. false면 "main CI 정상"이라고만(과거 실패 언급 금지).
 - 마지막에 오늘의 권장 액션 1~2줄
-머리말 없이 본문만. 슬랙 메시지용으로 짧게.
+머리말 없이 본문만. 슬랙용으로 짧게.
 
 데이터(JSON):
 ${JSON.stringify(data, null, 2)}`;
@@ -120,93 +119,69 @@ function machineFallback(data) {
   return `*(GMS_KEY 미설정 — 기계 요약)*\n*머지된 PR*\n${merged}\n*열린 PR*\n${open}\n*main CI*\n${ci}`;
 }
 
-// ───────── Jira (REST v3, Basic auth) ─────────
-
-function jiraAuth() {
-  return "Basic " + Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString("base64");
-}
-
-async function jira(path, method = "GET", body) {
-  const res = await fetch(`${JIRA_BASE}${path}`, {
-    method,
-    headers: { Authorization: jiraAuth(), "Content-Type": "application/json", Accept: "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Jira ${method} ${path} → ${res.status}: ${text}`);
-  return text ? JSON.parse(text) : {};
-}
-
-// ADF (Atlassian Document Format) — v3 description은 plain string 불가
-function adf(text) {
-  return {
-    type: "doc",
-    version: 1,
-    content: text.split("\n").map((line) => ({
-      type: "paragraph",
-      content: line ? [{ type: "text", text: line }] : [],
-    })),
-  };
-}
-
-async function searchIssueKey(jql) {
-  const payload = { jql, maxResults: 1, fields: ["key"] };
-  try {
-    const r = await jira("/rest/api/3/search", "POST", payload); // classic
-    return r.issues?.[0]?.key ?? null;
-  } catch {
-    const r = await jira("/rest/api/3/search/jql", "POST", payload); // enhanced
-    return r.issues?.[0]?.key ?? null;
-  }
-}
-
-async function createIssue(summary, description, labels) {
-  // 프로젝트 언어/유형에 따라 이름이 다를 수 있어 후보를 순차 시도(issuetype 오류 때만 다음으로).
-  const candidates = [...new Set([JIRA_TYPE, "Task", "작업", "Story", "스토리", "Bug", "버그"])];
-  let lastErr;
-  for (const name of candidates) {
-    try {
-      const r = await jira("/rest/api/3/issue", "POST", {
-        fields: { project: { key: JIRA_PROJECT }, summary, issuetype: { name }, description, labels },
-      });
-      return r.key;
-    } catch (e) {
-      lastErr = e;
-      if (!/issuetype|issue type/i.test(e.message)) throw e; // issuetype 외 오류는 즉시 중단
-    }
-  }
-  throw lastErr;
-}
+// ───────── Jira 블로커 (규칙 A) ─────────
 
 async function handleJira(data) {
   if (!JIRA_ENABLED) return "";
   try {
     if (FORCE_CI_ISSUE) {
-      const key = await createIssue(
-        "[TEST] 헤르메스 Jira 쓰기 검증",
-        adf("헤르메스가 Jira에 이슈를 생성할 수 있는지 확인하는 테스트입니다. 확인 후 닫아도 됩니다.\n(label: hermes-test)"),
-        ["hermes-test"],
-      );
+      const key = await createIssue({
+        summary: "[TEST] 헤르메스 Jira 쓰기 검증",
+        description: "헤르메스가 Jira에 이슈를 생성할 수 있는지 확인하는 테스트입니다. 확인 후 닫아도 됩니다.\n(label: hermes-test)",
+        labels: ["hermes-test"],
+      });
       return `\n:white_check_mark: Jira 테스트 이슈 생성: <${JIRA_BASE}/browse/${key}|${key}>`;
     }
     if (!data.mainCi.failing) return "";
-    // 중복 방지: 열린 ci-blocker 이슈가 이미 있으면 재생성 안 함
-    const jql = `project = ${JIRA_PROJECT} AND labels = ci-blocker AND statusCategory != Done ORDER BY created DESC`;
-    const existing = await searchIssueKey(jql);
-    if (existing) {
-      console.log(`이미 열린 CI 블로커 이슈: ${existing}`);
-      return `\n:jira: 기존 CI 블로커 이슈: <${JIRA_BASE}/browse/${existing}|${existing}>`;
-    }
-    const ci = data.mainCi;
-    const key = await createIssue(
-      `🚨 main CI 실패: ${ci.name} (run #${ci.runNumber})`,
-      adf(`main 브랜치 CI가 실패했습니다.\n워크플로: ${ci.name}\n브랜치: ${ci.branch}\n링크: ${ci.url}\n\n머지 전 수정 필요. (헤르메스 자동 생성, label: ci-blocker)`),
-      ["ci-blocker"],
+    const existing = await searchIssueKey(
+      `project = ${JIRA_PROJECT} AND labels = ci-blocker AND statusCategory != Done ORDER BY created DESC`,
     );
+    if (existing) return `\n:jira: 기존 CI 블로커 이슈: <${JIRA_BASE}/browse/${existing}|${existing}>`;
+    const ci = data.mainCi;
+    const key = await createIssue({
+      summary: `🚨 main CI 실패: ${ci.name} (run #${ci.runNumber})`,
+      description: `main 브랜치 CI가 실패했습니다.\n워크플로: ${ci.name}\n브랜치: ${ci.branch}\n링크: ${ci.url}\n\n머지 전 수정 필요. (헤르메스 자동 생성, label: ci-blocker)`,
+      labels: ["ci-blocker"],
+    });
     return `\n:rotating_light: Jira 블로커 이슈 생성: <${JIRA_BASE}/browse/${key}|${key}>`;
   } catch (e) {
-    console.error("Jira 처리 실패:", e.message);
-    return `\n:warning: Jira 이슈 처리 실패 (Actions 로그 확인)`;
+    console.error("Jira 블로커 처리 실패:", e.message);
+    return `\n:warning: Jira 블로커 처리 실패 (Actions 로그 확인)`;
+  }
+}
+
+// ───────── 개인별 업무 배정 다이제스트 (L1) ─────────
+
+async function assignmentDigest() {
+  if (!JIRA_ENABLED) return "";
+  if (!team.members.some((m) => m.jiraEmail)) return ""; // 이메일 없으면 skip
+  try {
+    const sections = [];
+    for (const m of team.members) {
+      const mention = m.slackMemberId ? `<@${m.slackMemberId}>` : `*${m.name}*`;
+      const acc = m.jiraEmail ? await resolveAccountId(m.jiraEmail).catch(() => null) : null;
+      if (!acc) {
+        sections.push(`${mention}: (Jira 계정 미설정)`);
+        continue;
+      }
+      const issues = await searchIssues(
+        `project = ${JIRA_PROJECT} AND assignee = "${acc}" AND statusCategory != Done ORDER BY status, created`,
+        ["key", "summary", "status"],
+        20,
+      );
+      if (!issues.length) {
+        sections.push(`${mention}: 진행 중 작업 없음`);
+        continue;
+      }
+      const list = issues
+        .map((i) => `   • ${i.key} ${i.fields.summary} _(${i.fields.status?.name || "?"})_`)
+        .join("\n");
+      sections.push(`${mention} — ${issues.length}건\n${list}`);
+    }
+    return `\n\n:clipboard: *오늘의 업무 배정*\n${sections.join("\n")}`;
+  } catch (e) {
+    console.error("배정 다이제스트 실패:", e.message);
+    return "";
   }
 }
 
@@ -235,9 +210,10 @@ async function main() {
   const data = await collect();
   const body = (await summarize(data)) || machineFallback(data);
   const jiraNote = await handleJira(data);
+  const assign = await assignmentDigest();
 
   const header = `:newspaper: *InSeoul 일일 다이제스트* — ${new Date().toISOString().slice(0, 10)}`;
-  await postSlack(`${header}\n${body}${jiraNote}`);
+  await postSlack(`${header}\n${body}${jiraNote}${assign}`);
   console.log("헤르메스 완료");
 }
 

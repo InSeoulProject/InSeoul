@@ -1,0 +1,30 @@
+{
+  "_comment": "팀 식별자. 아는 만큼 채우면 기능이 켜집니다. jiraEmail 있어야 자동 배정, slackMemberId 있어야 @멘션(없으면 이름).",
+  "members": [
+    {
+      "name": "함동균",
+      "areas": ["web", "api", "fe", "be"],
+      "githubLogin": "",
+      "jiraEmail": "",
+      "slackMemberId": ""
+    },
+    {
+      "name": "김세민",
+      "areas": ["ai", "data", "ci", "calculation", "shared-contracts"],
+      "githubLogin": "",
+      "jiraEmail": "",
+      "slackMemberId": ""
+    }
+  ],
+  "areaToMember": {
+    "web": "함동균",
+    "fe": "함동균",
+    "api": "함동균",
+    "be": "함동균",
+    "ai": "김세민",
+    "data": "김세민",
+    "ci": "김세민",
+    "calculation": "김세민",
+    "shared-contracts": "김세민"
+  }
+}

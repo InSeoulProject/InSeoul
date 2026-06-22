@@ -31,11 +31,29 @@ GitHub Actions cron(`.github/workflows/hermes.yml`)에서 실행되는 PM 다이
 ## 수동 실행 / 검증
 GitHub → Actions → **Hermes PM digest** → Run workflow.
 
-## 로드맵 (단계적 확장)
+## L1 — 백로그 시딩 + 자동 배정 + 개인 업무 다이제스트
+자율성 **C(하이브리드)**: 상태 동기화는 자동, 생성/배정은 흔적(라벨) + dry-run.
+
+### 설정: `team.json`
+두 사람의 식별자를 채우면 기능이 켜집니다 (아는 만큼만):
+- `jiraEmail` → **자동 배정** + 개인 다이제스트 (필수)
+- `slackMemberId`(`U…`) → Slack **@멘션** (없으면 이름)
+- `areas` / `areaToMember` → 영역(web/api/ai/data/ci...) → 담당자 매핑
+
+### 백로그 시딩 (`seed-backlog.mjs`)
+가이드 12·14장 Epic/Task를 `backlog.json` 기준으로 Jira에 생성 + 영역별 배정.
+- **dry-run 기본**: Actions → **Hermes seed backlog** → Run (apply 미체크) → 생성 *예정* 목록을 Slack에 제안
+- **적용**: 같은 워크플로 → **apply 체크** → 실제 생성 (label `seed`, 중복 방지)
+
+### 개인 업무 다이제스트
+매일 다이제스트 끝에 `assignee` 기준으로 **사람별 진행 중 작업**을 @멘션과 함께 게시.
+
+## 로드맵
 1. ✅ 일일 다이제스트
-2. ✅ Jira 블로커 자동 생성 (규칙 A — main CI 실패 시, 중복 방지)
-3. 이슈키 누락 PR 자동 코멘트 / Epic 진행률
-4. 릴리스/제출 노트 (main 머지 변경 모음)
-5. 블로커/스탠드업 취합 (가이드 13장 포맷)
+2. ✅ Jira 블로커 자동 생성 (규칙 A — main CI 실패, 중복 방지)
+3. ✅ L1: 백로그 시딩 + 자동 배정 + 개인 다이제스트
+4. L2: PR/CI 신호 → 칸반 상태 자동 동기화 (PR 머지→완료 등)
+5. L3: 우선순위/작업순서 제안 (Slack 승인 → 랭킹 API)
+6. L4: 전체 LLM tool-use 에이전트 통합
 
 심층·대화형 PM 작업은 cron과 별개로 로컬 `/hermes`(tmux 멀티에이전트)로 병행 가능.
