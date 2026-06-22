@@ -48,12 +48,23 @@ GitHub → Actions → **Hermes PM digest** → Run workflow.
 ### 개인 업무 다이제스트
 매일 다이제스트 끝에 `assignee` 기준으로 **사람별 진행 중 작업**을 @멘션과 함께 게시.
 
+## 대화형 명령 (Slack `/hermes`)
+Slack에서 자연어로 작업 요청 → 헤르메스(LLM tool-use)가 Jira에 반영 → 채널 회신.
+경로: Slack → Cloudflare Worker(`infra/slack-relay`) → GitHub `repository_dispatch`
+→ `hermes-command.yml` → `command.mjs`. 배포/설정은 `infra/slack-relay/README.md`.
+```
+/hermes 로그인 API 작업 만들어서 함동균한테 배정해줘
+/hermes 내 진행중 작업 보여줘
+/hermes NSLPRJCT-5 완료로 옮겨줘
+```
+도구: search_issues / create_issue / assign_issue / transition_issue (삭제 없음).
+
 ## 로드맵
 1. ✅ 일일 다이제스트
 2. ✅ Jira 블로커 자동 생성 (규칙 A — main CI 실패, 중복 방지)
 3. ✅ L1: 백로그 시딩 + 자동 배정 + 개인 다이제스트
-4. L2: PR/CI 신호 → 칸반 상태 자동 동기화 (PR 머지→완료 등)
-5. L3: 우선순위/작업순서 제안 (Slack 승인 → 랭킹 API)
-6. L4: 전체 LLM tool-use 에이전트 통합
+4. ✅ 대화형 Slack 명령 (`/hermes`, LLM tool-use)
+5. L2: PR/CI 신호 → 칸반 상태 자동 동기화 (PR 머지→완료 등)
+6. L3: 우선순위/작업순서 제안 (Slack 승인 → 랭킹 API)
 
 심층·대화형 PM 작업은 cron과 별개로 로컬 `/hermes`(tmux 멀티에이전트)로 병행 가능.

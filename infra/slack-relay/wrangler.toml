@@ -1,0 +1,9 @@
+name = "hermes-slack-relay"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# 비밀값은 코드/파일에 두지 말고 wrangler secret 으로:
+#   wrangler secret put SLACK_SIGNING_SECRET
+#   wrangler secret put GH_TOKEN
+[vars]
+GH_REPO = "InSeoulProject/InSeoul"
