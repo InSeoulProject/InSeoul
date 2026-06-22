@@ -4,8 +4,27 @@ server:
 spring:
   application:
     name: inseoul-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/inseoul?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.dialect: org.hibernate.dialect.MySQL8Dialect
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 # AI 내부 API 베이스 URL (BE만 호출). 실제값은 .env.local / 환경변수로 주입.
 ai:
   internal:
     base-url: ${AI_INTERNAL_BASE_URL:http://localhost:8000}
+
+jwt:
+  secret: ${JWT_SECRET:dev-secret-key-must-be-at-least-32-characters-long}
+  access-expiry-seconds: 1800
+  refresh-expiry-days: 7
