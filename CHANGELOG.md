@@ -10,3 +10,4 @@
 
 ### Verify
 - IN-1 Jira ↔ GitHub 연동 검증 커밋
+- IN-1 연동 라이브 확인 (post-connect)
