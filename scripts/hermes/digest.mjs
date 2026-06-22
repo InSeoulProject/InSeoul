@@ -4,15 +4,20 @@
 //
 // 환경변수:
 //   GITHUB_TOKEN, GITHUB_REPOSITORY (Actions 자동 제공)
-//   ANTHROPIC_API_KEY (필수 — 없으면 요약 skip)
+//   GMS_KEY (필수 — 사내 GMS 프록시 키. 없으면 ANTHROPIC_API_KEY 폴백, 둘 다 없으면 요약 skip)
+//   LLM_BASE_URL (선택, 기본 https://gms.ssafy.io/gmsapi/api.anthropic.com/v1/messages)
 //   SLACK_WEBHOOK_URL (필수 — 없으면 콘솔 출력)
-//   HERMES_MODEL (선택, 기본 claude-haiku-4-5)
+//   HERMES_MODEL (선택, 기본 claude-sonnet-4-6)
 
 const GH_TOKEN = process.env.GITHUB_TOKEN;
 const REPO = process.env.GITHUB_REPOSITORY; // "owner/name"
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+// 사내 GMS 프록시(Anthropic Messages 호환) 키 우선, 없으면 공개 Anthropic 키로 폴백.
+const LLM_KEY = process.env.GMS_KEY || process.env.ANTHROPIC_API_KEY;
+const LLM_URL =
+  process.env.LLM_BASE_URL ||
+  "https://gms.ssafy.io/gmsapi/api.anthropic.com/v1/messages";
 const SLACK_URL = process.env.SLACK_WEBHOOK_URL;
-const MODEL = process.env.HERMES_MODEL || "claude-haiku-4-5";
+const MODEL = process.env.HERMES_MODEL || "claude-sonnet-4-6";
 
 const SINCE = new Date(Date.now() - 24 * 60 * 60 * 1000); // 최근 24시간
 
@@ -56,7 +61,7 @@ async function collect() {
 }
 
 async function summarize(data) {
-  if (!ANTHROPIC_KEY) {
+  if (!LLM_KEY) {
     return null;
   }
   const prompt = `너는 InSeoul 2인 개발팀의 PM 어시스턴트 "헤르메스"다.
@@ -70,11 +75,11 @@ async function summarize(data) {
 데이터(JSON):
 ${JSON.stringify(data, null, 2)}`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch(LLM_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": ANTHROPIC_KEY,
+      "x-api-key": LLM_KEY,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
@@ -116,13 +121,13 @@ async function main() {
 
   let body = await summarize(data);
   if (!body) {
-    // ANTHROPIC_API_KEY 없을 때 fallback: 기계 생성 요약
+    // LLM 키(GMS_KEY) 없을 때 fallback: 기계 생성 요약
     const merged = data.mergedRecently.map((p) => `• #${p.number} ${p.title}`).join("\n") || "• 없음";
     const open = data.open
       .map((p) => `• #${p.number} ${p.title}${p.hasIssueKey ? "" : " ⚠️ 이슈키 누락"}`)
       .join("\n") || "• 없음";
     const fails = data.failedRuns.map((r) => `• ${r.name} (${r.branch})`).join("\n") || "• 없음";
-    body = `*(ANTHROPIC_API_KEY 미설정 — 기계 요약)*\n*머지된 PR*\n${merged}\n*열린 PR*\n${open}\n*CI 실패*\n${fails}`;
+    body = `*(GMS_KEY 미설정 — 기계 요약)*\n*머지된 PR*\n${merged}\n*열린 PR*\n${open}\n*CI 실패*\n${fails}`;
   }
 
   const header = `:newspaper: *InSeoul 일일 다이제스트* — ${new Date().toISOString().slice(0, 10)}`;

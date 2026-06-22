@@ -26,7 +26,9 @@ jobs:
       - name: Run Hermes digest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMS_KEY: ${{ secrets.GMS_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          HERMES_MODEL: claude-haiku-4-5
+          HERMES_MODEL: claude-sonnet-4-6
+          # 기본 base URL은 스크립트에 내장(SSAFY GMS 프록시). 바뀌면 아래 주석 해제:
+          # LLM_BASE_URL: https://gms.ssafy.io/gmsapi/api.anthropic.com/v1/messages
         run: node scripts/hermes/digest.mjs

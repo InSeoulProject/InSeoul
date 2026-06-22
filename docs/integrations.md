@@ -23,12 +23,16 @@ PR·이슈·리뷰·푸시 활동이 채널로 들어온다. 필요시 `/github 
 
 ## 헤르메스 (PM 에이전트)
 `.github/workflows/hermes.yml` — cron(평일 09:00 KST) + 수동 실행(`workflow_dispatch`).
-`scripts/hermes`가 GitHub(PR/이슈/CI)·(선택)Jira를 수집해 Claude(`claude-haiku-4-5`)로 요약, Slack에 게시.
+`scripts/hermes`가 GitHub(PR/이슈/CI)·(선택)Jira를 수집해 사내 GMS 프록시(Anthropic 호환,
+`claude-sonnet-4-6`)로 요약, Slack에 게시.
 
 필요한 Secrets:
-- `ANTHROPIC_API_KEY` (필수)
+- `GMS_KEY` (필수 — SSAFY GMS 프록시 키, `x-api-key` 로 전송)
 - `SLACK_WEBHOOK_URL` (필수, CI 알림과 공용)
 - `JIRA_BASE_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN` (선택 — 헤르메스가 Jira를 *읽을* 때만)
+
+엔드포인트 기본값: `https://gms.ssafy.io/gmsapi/api.anthropic.com/v1/messages` (스크립트 내장,
+`LLM_BASE_URL` env 로 변경 가능).
 
 수동 검증: GitHub → Actions → "Hermes PM digest" → **Run workflow**.
 
